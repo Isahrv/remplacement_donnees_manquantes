@@ -1,0 +1,1078 @@
+---
+title: "Analyse et traitement des valeurs manquantes "
+author: Juliette Grison, Isaline Hervé
+format:
+  pdf:
+    code-fold: true
+    toc: true
+    toc_depth: 2 
+    toc_title: "Sommaire"
+    number_sections: true
+    echo: true
+    results: "asis"
+    text-justify: true
+    highlight: true
+  html:
+    toc: true
+    code-fold: true
+    lof: true
+    echo: false
+---
+
+# Introduction
+Le sommeil joue un rôle fondamental dans la vie des étudiants, influençant directement leur bien-être physique, mental et leurs performances académiques. Dans le cadre de ce dossier, nous analysons un jeu de données centré sur les habitudes de sommeil des étudiants, afin d'explorer et de mieux comprendre les facteurs associés à leur quantité de sommeil.    
+
+Notre analyse se divise en deux parties principales. La première partie est consacrée à une analyse descriptive, visant à examiner les caractéristiques générales du jeu de données et à identifier la présence éventuelle de valeurs manquantes. Cette étape permet de poser les bases d'une compréhension approfondie des données et de repérer les éventuelles lacunes ou anomalies. La seconde partie se concentre sur le traitement des valeurs manquantes, en appliquant différentes méthodes pour les gérer de manière rigoureuse et méthodologique.    
+
+L'objectif global de ce rapport est de fournir une analyse complète et précise des données disponibles, tout en garantissant l'intégrité des résultats obtenus grâce à une gestion appropriée des valeurs manquantes. Cette démarche permettra de tirer des conclusions fiables sur les habitudes de sommeil des étudiants et d'identifier les éventuels points d'amélioration dans l'exploitation des données.
+
+# Présentation des données
+
+Pour collecter les données nécessaires pour notre analyse, nous avons envoyé un questionnaire Google Forms à tous les étudiants de l’IAE de Nantes. Nous l’avons également diffusé sur divers canaux où d’autres individus avaient la possibilité de le remplir afin d’avoir un échantillon le plus complet possible. Nous avons ainsi pu récolter un total de 327 observations.    
+Il s'agissait, au départ, d'une enquête visant à évaluer les facteurs qui influencent le nombre d'heures de sommeil moyen chez les étudiants. Une fois notre jeu de données complet, nous avons sélectionné uniquement les variables pertinentes pour notre analyse et notre traitement de valeurs manquantes. Nous nous sommes retrouvés avec un total de 7 variables :   
+
+- **hsommeil** (num) : indique le nombre d'heures de sommeil moyen de l'étudiant. Les participants étaient libre d'inscrire leur réponse ;  
+- **formephy** (int) : indique la perception de la forme physique du participant. Elle comporte 5 modalités : "*1 = Pas du tout*", "*2 = Un peu*", "*3 = Moyennement*", "*4 = Bien*", "*5 = Très bien*" ;  
+- **formemen** (int) : indique la perception de la forme mentale du participant. Elle comporte 5 modalités : "*1 = Pas du tout*", "*2 = Un peu*", "*3 = Moyennement*", "*4 = Bien*", "*5 = Très bien*" ;  
+- **anxiete** (factor) : indique la présence d'anxiété du répondant. Elle comporte 2 modalités : "*Oui*", "*Non*" ;  
+- **genre** (factor) : indique le genre de la personne. Elle comporte 3 modalités : "*Femme*", "*Homme*", "*Autre/Ne préfère pas répondre*" ;  
+- **cours_avant_9h** (factor) : indique la quantité de cours commençant avant 9 heures dans la semaine. Elle comporte 4 modalités : "*Jamais*", "*1 fois par semaine ou occasionnellement*", "*2 fois par semaine*", "*3 fois par semaine ou plus*" ;  
+- **trajet** (integer) : indique la durée du trajet en minutes pour se rendre à son lieu d'études. Les participants étaient libre d'inscrire leur réponse.  
+
+::: callout-note
+## Information sur la variable trajet
+
+Dans le cadre de notre étude, nous avons décidé de transformer la variable trajet en ajoutant aléatoirement des valeurs comprise dans les intervalles des modalités existantes. 
+Les intervalles étaient : "*Moins de 15min*", "*Entre 15 et 30min*", "*Entre 30min et 1h*", "*1h ou +*".
+Nous avons également ajouté quelques valeurs faussement mal renseignées pour ajouter du réalisme.
+
+Le but étant d'avoir une variable numérique supplémentaire afin de diversifier nos méthodes de traitement des valeurs manquantes.
+:::
+
+# Jeu de données et premier traitement
+## Import des données
+
+```{r}
+#setwd("C:/Users/isali/OneDrive/Documents/cours/M1 ECAP/S1/Biostatistiques/dossier_biostats")
+
+#enquete_originale <- read.csv2("enquete_originale.csv", header = TRUE, sep = ",")
+```
+
+## Import des packages
+
+```{r}
+library(stringr)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(PerformanceAnalytics)
+library(EnvStats)
+library(lsr)
+library(vcd)
+library(reshape2)
+library(mice)
+```
+
+## Suppression de données aléatoires
+
+Notre jeu de données n'ayant pas beaucoup de valeurs manquantes, nous avons alors supprimé aléatoirement certaines valeurs. Nous avons décidé de ne pas inclure de nouvelles valeurs manquantes dans la variable hsommeil, celle-ci en ayant déjà "naturellement".
+
+```{r}
+#missing_fractions <- runif(ncol(enquete_originale), min = 0, max = 0.25)
+
+#enquete_na <- enquete_originale
+
+#enquete_na[] <- mapply(function(col, missing_fraction, col_name) {
+#  if (col_name != "hsommeil") {
+#    col[runif(length(col)) < missing_fraction] <- NA
+#  }
+#  return(col)
+#}, enquete_originale, missing_fractions, colnames(enquete_originale), SIMPLIFY = FALSE)
+
+#print(missing_fractions)
+#write.csv(enquete_na, "enquete_na.csv", row.names = FALSE)
+```
+
+## Import des données modifiées avec NA
+```{r}
+setwd("C:/Users/isali/OneDrive/Documents/cours/M1 ECAP/S1/Biostatistiques/dossier_biostats")
+
+enquete_na <- read.csv2("enquete_na.csv", header = TRUE, sep = ",")
+```
+
+## Traitement des valeurs manquantes mal écrites
+### Visualisation des valeurs manquantes de hsommeil et trajet
+
+Dans certains cas, les valeurs sont manquantes en raison du fait qu'elles aient été mal communiquées par la personne répondant à la question. C'est le cas pour la variable concernant le nombre d'heures de sommeil et celle du temps de trajet, où les réponses étaient libres. Les données existent bien, mais certaines ont été mal renseignées. Nous avons donc fait le choix de tenter de retrouver la valeur réelle de ces données manquantes avant de poursuivre notre analyse. Dans, un premier temps, nous avons mis en lumière ces valeurs problématiques.  
+
+```{r}
+unique(enquete_na$hsommeil)
+unique(enquete_na$trajet)
+```
+  
+Nous pouvons observer qu'excepté les observations vides et les NA, certaines valeurs manquantes existent et sont bien dues à l'écriture des données. 
+Pour la variable hsommeil, nous retrouvons donc dans les valeurs à problèmes : des "h" ou "H", des "h30", des "30", des ",", des ",." et des "7 / 7.5".
+En ce qui concerne le variable trajet, nous remarquons 3 valeurs problématiques : "20min", "30/40 minutes" et "une demi heure".  
+
+Nous avons décidé de traiter ces valeurs manquantes avant la conversion des variables dans le bon format afin de ne pas perdre ces valeurs.  
+
+### Traitement des valeurs manquantes mal écrites de hsommeil et trajet 
+
+```{r}
+enquete_na$hsommeil <- str_replace_all(enquete_na$hsommeil, 
+  c(
+    "h" = ".", "H" = ".", "," = ".", ",." = ".", 
+    "8..5" = "8.5", "7 / 7.5" = "7", "30" = "5"
+  )
+)
+
+enquete_na$trajet <- str_replace_all(enquete_na$trajet, 
+  c(
+    "20min" = "20", "30/40 minutes" = "35", "une demi heure" = "30"
+  )
+)
+
+# Vérification
+unique(enquete_na$hsommeil)
+unique(enquete_na$trajet)
+```
+
+Les valeurs problématiques de ces variables ont bien été modifiées et ne devraient plus poser de problèmes pour le traitement. Nous pouvons maintenant convertir ces variables au format numérique et integer.
+
+## Conversion des types de données
+Afin d'assurer la qualité de notre analyse, nous allons mettre nos variables dans le bon format. Comme évoqué ci-dessus, la variable hsommeil doit être numérique. Les variable formephy et formemen prennent uniquement les valeurs 1, 2 ,3, 4, et 5 et doivent donc être mise en *integer*, ainsi que trajet qui contient également que des nombre entiers. Le reste des variables doivent être mises en facteur ; soient binaires (anxiete), soit à 3 ou 4 niveaux (genre et cours_avant_9h).
+
+```{r}
+# hsommeil doit être mise en numérique
+enquete_na$hsommeil <- as.numeric(enquete_na$hsommeil)
+
+# formephy, formemen et trajet doivent être mises en integer, pour formephy et formemen, en gardant que le chiffre avant le "=", qui est un nombre entier
+enquete_na[, c(3, 4)] <- lapply(enquete_na[, c(3, 4)], function(x) gsub(" =.*", "", x))
+enquete_na[, c(3, 4, 7)] <- lapply(enquete_na[, c(3, 4, 7)], as.integer)
+
+# Pour transformer les variables en facteurs en considérant les valeurs vides comme des NA et non comme des facteurs
+enquete_na[, c(1, 5, 6)] <- lapply(enquete_na[, c(1, 5, 6)], function(col) {
+  col[col == ""] <- NA  
+  as.factor(col)       
+})
+```
+
+### Vérification
+```{r}
+summary(enquete_na)
+```
+
+Nous remarquons qu'il y a au moins un NA dans chaque variable ; il est possible qu'une même valeur soit manquante pour toutes nos variables. Nous y reviendrons au moment du traitement des NA. En premier lieu, nous allons effectuer une analyse descriptive détaillée pour chacune de nos variables.
+
+## Première visualisation des données
+```{r}
+plot(enquete_na)
+```
+
+Avec cette première visualisation générale de nos données, nous observons une légère corrélation positive entre la forme physique et les heures de sommeil, et entre la forme mentale et les heures de sommeil. Nous pouvons également supposer qu'une relation négative existe entre le temps de trajet et les heures de sommeil. Autrement, il reste difficile de tirer des conclusions pertinentes de ce graphique à lui seul, ce qui est en partie dû à la petite taille de notre échantillon. C'est pourquoi nous allons dans un premier temps faire une analyse univariée, puis faire une analyse bivariée pour avoir un meilleur aperçu de nos données. 
+
+# Analyse descriptive univariée
+
+## Vecteur couleur
+```{r}
+couleur <- c(
+  "Oui" = "lightgoldenrod1",
+  "Non" = "darksalmon",
+  "Autre/Ne préfère pas répondre" = "darkolivegreen2",
+  "Femme" = "mistyrose2",
+  "Homme" = "paleturquoise3",
+  "1 fois par semaines ou occasionnellement" = "darkseagreen3",
+  "2 fois par semaines" = "indianred2",
+  "3 fois par semaine ou plus" = "thistle",
+  "Jamais" = "darkcyan"
+)
+```
+
+## Variables qualitatives
+```{r}
+variables_qualitatives <- c("genre", "anxiete", "cours_avant_9h")
+```
+
+### Diagrammes circulaires
+```{r}
+for (var_name in variables_qualitatives) {
+  
+  freq_table <- enquete_na |>
+    count(!!sym(var_name)) |>
+    mutate(pourcentage = n / sum(n) * 100)  
+  
+  p <- ggplot(freq_table, aes(x = "", y = pourcentage, fill = !!sym(var_name))) +
+    geom_bar(width = 1, stat = "identity") +
+    scale_fill_manual(values = couleur) +
+    coord_polar("y") +
+    labs(title = paste("Diagramme circulaire de", var_name)) +
+    theme_void() +
+    theme(legend.title = element_blank()) +  
+    geom_text(aes(label = paste0(round(pourcentage, 1), "%")), 
+              position = position_stack(vjust = 0.5)) 
+    print(p)
+}
+```
+
+Grâce à ces diagrammes circulaires, nous pouvons voir que la majorité de notre échantillon sont des femmes. Une grande partie de l'échantillon souffre également d'anxiété. Pour ce qui est des cours commençant avant 9h, les valeurs sont plutôt bien réparties dans chaque catégorie.
+Cependant, un nombre important de variables manquantes peuvent être observées, qui nous empêchent d'analyser la réelle répartition des données.
+
+### Diagrammes en barre
+
+Une autre manière de visualiser la disteibution des variables qualitatives est l'utilisation de diagrammes en barre : 
+
+```{r}
+for (var in variables_qualitatives) {
+  plot <- enquete_na |>
+    ggplot() +
+    aes_string(x = var, fill = var) +
+    geom_bar() +
+    scale_fill_manual(values = couleur) +
+    theme_classic() +
+    labs(title = paste("Distribution de", var), x = var, fill = var)
+
+  print(plot)
+}
+
+```
+
+## Variables quantitatives
+```{r}
+variables_quantitatives <- c("hsommeil", "formephy", "formemen", "trajet")
+```
+
+### Boxplot
+
+```{r}
+enquete_na |>
+ pivot_longer(
+ cols = where(is.numeric)
+ ) |>
+ ggplot() +
+ aes(y = value, x = "") +
+ facet_wrap(~ name, scales = "free_y") +
+ geom_boxplot() +
+ geom_jitter(alpha = 0.1) +
+ theme_light()
+```
+
+Nous remarquons que les heures de sommeil sont plutôt bien réparties autour de la médiane. Cette dernière a une valeur d'environ 7h de sommeil. Pour le temps de trajet, les valeurs sont également plutôt bien réparties autour de la moyenne. Néanmoins, certains points s'en éloignent considérablement. La dispersion des valeurs de formephy et formemen semble être très similaires, malgré une différence entre les médianes.
+
+En outre, nous observons plusieurs valeurs potentiellement atypiques ; 1 pour formephy, 1 pour formemen, 2 pour hsommeil et 8 pour trajet. Nous avons alors souhaité effectué des tests de Rosner pour les variables hsommeil et trajet ayant potentiellement plusieurs valeurs atypiques. De plus, nous avons fait des tests de grubbs pour les variables formephy et formemen ayant potentiellement une seule valeur atypique.
+
+```{r}
+rosnerTest(enquete_na$hsommeil, k = 2, alpha = 0.05)
+rosnerTest(enquete_na$trajet, k = 8, alpha = 0.05)
+```
+
+Nous pouvons constater que la valeur "3.5" dans hsommeil est bien atypique, ainsi que les valeurs "119", "116", "115", "112" et "109" dans trajet. Nous allons alors supprimer les lignes contenant ces valeurs, car concernant seulement quelques lignes, notre échantillon sera toujours assez important pour garantir une fiabilité statistique.
+
+```{r}
+num_lignes <- which(enquete_na$trajet %in% c(119, 116, 115, 112, 109))
+
+print(num_lignes)
+
+enquete_na <- enquete_na[
+  !(enquete_na$hsommeil == 3.5 | enquete_na$trajet %in% c(119, 116, 115, 112, 109)),
+]
+
+# Vérification
+summary(enquete_na)
+```
+
+Nous voyons bien qu'après suppression de ces lignes, le minimum dans hsommeil n'est plus de 3.5 mais de 4 et le maximum dans trajet n'est plus 119 mais 104.
+
+```{r}
+library(outliers)
+grubbs.test(enquete_na$formephy, type = 10, two.sided = TRUE)
+grubbs.test(enquete_na$formemen, type = 10, two.sided = TRUE)
+```
+
+La p-value étant inférieur à 0.05 pour les 2 tests, il n'y a pas assez de preuves pour considérer que des valeurs sont atypiques dans les variables formephy et formemen.
+
+### Histogramme
+
+Pour hsommeil, qui est une variable **quantitative continue**, il peut être utile de la visualiser avec un histogramme comme celui ci-dessous. 
+```{r}
+ggplot(enquete_na, aes(x = hsommeil)) +
+  geom_histogram(binwidth = 1, fill = "skyblue", color = "black") +
+  theme_light() +
+  labs(
+    title = "Histogramme de la variable hsommeil",
+    x = "Heures de sommeil",
+    y = "Fréquence"
+  )
+```
+
+```{r}
+ggplot(enquete_na, aes(x = trajet)) +
+  geom_histogram(binwidth = 10, fill = "skyblue", color = "black") +
+  theme_light() +
+  labs(
+    title = "Histogramme de la variable trajet",
+    x = "Temps de trajet",
+    y = "Fréquence"
+  )
+```
+
+La distribution des valeurs de nos 2 variables quantitatives continues semble normale.
+
+### Mesures
+```{r}
+enquete_na |>
+  summarise(
+    across(
+      .cols = where(is.numeric),
+      .fns = list(
+        moyenne = ~ mean(.x, na.rm = TRUE),
+        médiane = ~ median(.x, na.rm = TRUE),
+        minimum = ~ min(.x, na.rm = TRUE),
+        maximum = ~ max(.x, na.rm = TRUE),
+        "écart-type" = ~ sd(.x, na.rm = TRUE)
+      ),
+      .names = "{.col}_{.fn}" 
+    )
+  ) |>
+  pivot_longer(everything()) |>
+  separate_wider_delim(
+    name,
+    delim = "_", 
+    names = c("variable", "mesure")
+  ) |>
+  pivot_wider(names_from = mesure, values_from = value)
+```
+
+Ce tableau nous permet de voir la distribution de nos variables qualitatives, avec des statistiques de tendance centrale, notamment la moyenne et la médiane.    
+
+Pour toutes ces variables, nous pouvons voir que la moyenne et la médiane sont relativement proches. Cela est une bonne indication, car cela signifie que la distribution des données est plutôt symétrique et n’est pas beaucoup influencée par les valeurs extrêmes.    
+
+Puis, nous avons également étudié des statistiques de dispersion, en observant l’écart-type de ces variables, ainsi que le minimum et le maximum.
+En observant ces résultats pour hsommeil, le minimum étant de 4 et le maximum étant de 10 heures de sommeil, nous indiquent qu’il y a néanmoins une certaine fluctuation dans les réponses. Cependant, la dispersion autour de la moyenne n’est pas excessive, puisque la plupart des réponses se situent à environ 0.93 unités autour de la moyenne qui est de 7.20.
+
+# Analyse descriptive bivariée
+
+## Quanti-Quanti 
+
+### Corrélation de Spearman
+```{r}
+cor(enquete_na[,c("hsommeil", "formephy", "formemen", "trajet")], use="complete.obs",method = c("spearman"))
+
+mydata <- enquete_na[, c("hsommeil", "formephy", "formemen", "trajet")]
+chart.Correlation(mydata, histogram=TRUE, pch=19,method = c("spearman"))
+```
+
+Une corrélation positive modérément élevée entre formephy et formemen est à noter (0.60). 
+
+```{r}
+cor.test(
+ formula= ~hsommeil + formephy,
+ data = enquete_na
+ )
+
+cor.test(
+ formula= ~hsommeil + formemen,
+ data = enquete_na
+ )
+
+cor.test(
+ formula= ~formephy + formemen,
+ data = enquete_na
+ )
+
+cor.test(
+ formula= ~hsommeil + trajet,
+ data = enquete_na
+ )
+
+cor.test(
+ formula= ~trajet + formemen,
+ data = enquete_na
+ )
+
+cor.test(
+ formula= ~trajet + formephy,
+ data = enquete_na
+ )
+```
+
+Ce test de corrélation nous indique la force de corrélation entre nos variables quantitatives ainsi que la significativité de celle-ci. Ainsi, nous notons :  
+- Une faible corrélation entre hsommeil et formephy (0.27 environ) significative (p-value <0.05) ;  
+- Une faible corrélation entre hsommeil et formemen (0.29 environ) significative (p-value <0.05) ;  
+- Une corrélation modérée à forte entre formemen et formephy (0.65 environ) significative (p-value <0.05) ;    
+- Une corrélation faible entre hsommeil et trajet (-0.13 environ) ;  
+- Une corrélation faible entre trajet et formemen (-0.17 environ) ;  
+- Une corrélation faible entre trajet et formephy (-0.25 environ) ;  
+
+
+### Modèle linéaire formephy formemen
+```{r}
+modele_lineaire <- lm(
+ formula = formephy ~ formemen,
+ data = enquete_na
+ )
+ modele_lineaire |>
+ summary()
+```
+
+Afin de mieux quantifier cette corrélation entre formephy et formemen, nous avons crée un modèle linéaire avec formephy comme variable d'intérêt et formemen comme variable explicative. Nous pouvons en déduire que quand formemen augmente d'une unité, formephy augmente de 0.63 unités, un résultat qui est très significatif (p-value largement inférieure à 0.05).   
+Cependant, nous partons du principe que cette corrélation n'est pas assez fort pour nuire à notre analyse ; nous conservons donc ces deux variables pour la suite.  
+
+
+## Quali-Quali
+### Graphiques
+```{r}
+enquete_na |>
+ count(genre, cours_avant_9h, anxiete)|>
+ ggplot() +
+ aes(x =genre,y= anxiete, fill= n) +
+ geom_tile(stat= "identity") +
+ facet_wrap(~ cours_avant_9h) +
+ theme_bw()
+```
+
+Nous pouvons remarquer qu'un nombre important de femmes souffrent d'anxiété, ce qui est constant pour toutes les catégories de cours_avant_9h à part pour les personnes n'ayant jamais cours avant 9h, dans laquelle il y en a légèrement moins. 
+
+En outre, ce graphique nous permet de mettre en évidence le fait que les valeurs manquantes prennent une place considérable dans la majorité de nos catégorie, ce qui complexifie notre analyse. 
+
+### Matrice de Cramer's V
+```{r}
+correlation_matrix <- matrix(NA, ncol = length(variables_qualitatives), nrow = length(variables_qualitatives))
+colnames(correlation_matrix) <- variables_qualitatives
+rownames(correlation_matrix) <- variables_qualitatives
+
+for (i in 1:length(variables_qualitatives)) {
+  for (j in i:length(variables_qualitatives)) { 
+    if (i != j) {
+
+      tab <- table(enquete_na[[variables_qualitatives[i]]], enquete_na[[variables_qualitatives[j]]])
+
+      cramer_v <- assocstats(tab)$cramer
+      correlation_matrix[i, j] <- cramer_v
+      correlation_matrix[j, i] <- cramer_v  
+    } else {
+
+      correlation_matrix[i, j] <- 1
+    }
+  }
+}
+
+correlation_data <- melt(correlation_matrix, varnames = c("Variable1", "Variable2"), value.name = "Correlation")
+
+ggplot(correlation_data, aes(Variable1, Variable2, fill = Correlation)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "white", high = "steelblue", na.value = "grey") +
+  labs(title = "Matrice de Corrélation (Cramér's V) pour Variables Qualitatives", fill = "Corrélation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        axis.text.y = element_text(angle = 0, hjust = 1))
+```
+
+Cette matrice de corrélation représentant l'ensemble des variables qualitatives nous montre une légère corrélation (environ 0.4) entre anxiete et genre. 
+
+## Quali-Quanti
+### Violin plot
+```{r}
+palette_bleu <- colorRampPalette(c("lightblue", "blue", "darkblue"))
+colors <- palette_bleu(5)
+
+dir.create("Violin_Plots", showWarnings = FALSE)
+
+for (var_quali in variables_qualitatives) {
+
+  if (var_quali %in% names(enquete_na)) {
+
+    p <- ggplot(enquete_na, aes_string(x = var_quali, y = "hsommeil", fill = var_quali)) +
+      geom_violin(alpha = 0.7, draw_quantiles = c(0.25, 0.5, 0.75)) +
+      labs(title = paste("Violin Plot de temps de hsommeil par", var_quali),
+           x = var_quali, y = "hsommeil") +
+      scale_fill_manual(values = colors) +
+      theme_classic() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+    print(p)
+  }}
+```
+
+Le graphique en violon ci-dessus illustre la distribution de la quantité de cours commençant à 9h par rapport aux heure de sommeil. En regardant la médiane de chaque catégorie de cours_avant_9h, un nombre très limité de conclusions peuvent être tirées, étant donné que ces médianes sont très similaires entre catégories (environ 7.2).  
+Cependant, une médiane légèrement plus basse (environ 7) peut être observée pour la catégorie *3 fois par semaine ou plus*. Ce qui indique une potentielle corrélation négative entre la quantité de sommeil, et le fait de souvent commencer les cours tôt le matin.  
+ 
+
+### Statistique êta carré  
+
+Enfin, nous avons utilisé la statistique êta carré afin de mesure l'intensité de l'association entre une variable quantitative (ici hsommeil) et nos différentes variables qualitatives (genre, anxiete, cours_avant_9h). Cela teste dans un premier temps si les moyennes entre la paire de variables diffèrent de manière significative entre les groupes de la variable qualitative, à variance égale. Le même test est effectué dans un second temps, cette fois-ci en supposant que les variances des groupes ne sont pas égales. Ensuite, le troisième test mesure la proportion de la variabilité inter-groupe dans la variabilité totale.
+
+```{r}
+# Entre hsommeil et genre
+oneway.test(hsommeil ~ genre, enquete_na, var.equal = TRUE)
+oneway.test(hsommeil ~ genre, enquete_na, var.equal = FALSE)
+etaSquared(aov(hsommeil ~ genre, enquete_na)) [1]
+
+# Entre hsommeil et anxiete
+oneway.test(hsommeil ~ anxiete, enquete_na, var.equal = TRUE)
+oneway.test(hsommeil ~ anxiete, enquete_na, var.equal = FALSE)
+etaSquared(aov(hsommeil ~ anxiete, enquete_na)) [1]
+
+# Entre hsommeil et cours_avant_9h
+oneway.test(hsommeil ~ cours_avant_9h, enquete_na, var.equal = TRUE)
+oneway.test(hsommeil ~ cours_avant_9h, enquete_na, var.equal = FALSE)
+etaSquared(aov(hsommeil ~ cours_avant_9h, enquete_na)) [1]
+```
+
+
+Pour chaque variable qualitative, nous avons une p-value > 0.05 et un eta carré relativement faible. Nous pouvons en déduire que ces variables n'ont pas d'effet significatif sur hsommeil, et que l'effet de celles-ci est assez faible (par exemple, seulemet 1.2% de la variance de hsommeil est expliquée par le genre).  
+
+Maintenant que l'analyse descriptive de nos variable est faite, nous allons passer au traitement de nos valeurs manquantes en utilisant plusieurs méthodes différentes.
+
+
+# Traitement des NA
+
+## Première Visualisation des données manquantes
+```{r}
+naniar::gg_miss_upset(enquete_na, nsets = 7, nintersects = 100)
+
+# (nsets est pour le nombre de variables, car gg_miss_upset est par défaut limité à 5 variables alors que nous avons 7 variables)
+```
+
+Ce graphique nous permet de voir la répartition de l'ensemble des valeurs manquantes sur toutes nos variables.  
+Nous pouvons constater que toutes les variables ont bien des valeurs considérées comme manquantes.  
+Les variables en ayant le plus sont formemen et formephy. 
+On observe également  qu'il y a une ligne pour laquelle toutes les données sont manquantes et plusieurs lignes où il manque 3 ou 4 données à la fois.   
+
+Pour commencer, nous avons décidé de supprimer les lignes ayant beaucoup de valeurs manquantes.   
+En effet, nous pouvons voir qu'il y a une ligne pour laquelle toutes les valeurs manquent. Pour cette ligne-là, nous pourrons alors simplement remplacer toutes ces valeurs par la moyenne ou la médiane de chaque variable mais cela n'aura pas vraiment d'intérêt dans le cadre d'une régression linéaire. Une autre solution est alors de supprimer entièrement cette observation.  
+En ce qui concerne le reste des valeurs manquantes, nous pouvons observer quelques lignes où manquent 3 ou 4 données de certaines variables. Effectuer des remplacements serait possible, notamment par déduction d'après une régression ou en remplaçant par la moyenne. Néanmoins, étant donné le nombre important de valeur manquantes, les remplacements risquent de trop s'éloigners de leur valeur réelle.  
+C'est pourquoi il nous a semblé judicieux de supprimer ces lignes d'observation, sachant qu'elles ne sont pas très nombreuses et n'affecteront donc pas tellement notre jeu de données et la fiabilité de notre analyse.
+
+## Cas des lignes où beaucoup de valeurs manquent
+### Identification des lignes concernées
+
+Dans un premier temps, nous allons identifier quelle est la ligne où toutes les données sont manquantes et quelles sont celles où il y a 3 ou 4 données manquantes.
+```{r}
+ligne_na_complet <- which(apply(enquete_na, 1, function(x) all(is.na(x))))
+ligne_na_3 <- which(apply(enquete_na, 1, function(x) sum(is.na(x)) == 3))
+ligne_na_4 <- which(apply(enquete_na, 1, function(x) sum(is.na(x)) == 4))
+
+print(ligne_na_complet)
+print(ligne_na_3)
+print(ligne_na_4)
+```
+
+Nous retrouvons 19 lignes pour lesquelles 3, 4 ou toutes les données manquent.
+
+### Suppression de ces lignes
+
+Dans un second temps, nous allons pouvoir supprimer ces lignes de notre jeu de données.
+
+```{r}
+enquete_na <- enquete_na[-c(ligne_na_complet, ligne_na_3, ligne_na_4), ]
+```
+
+Nous nous retrouvons à présent avec 299 observations. 
+
+### Vérification
+```{r}
+naniar::gg_miss_upset(enquete_na, nsets = 7, nintersects = 100)
+```
+
+Après vérification, nous pouvons constater que ces lignes ont bien été supprimées.
+
+Pour commencer, après avoir vu que la variable trajet n'avait pas beaucoup de valeurs manquante, nous avons pensé à les remplacer par la moyenne des observations similaires.
+
+## Remplacement trajet avec moyenne
+
+Premièrement, nous avons identifier ces valeurs manquantes.
+
+### Comptage des valeurs manquantes
+```{r}
+enquete_na |>
+  filter(is.na(trajet)) |>
+  count(hsommeil, genre)
+```
+
+Puis, nous avons calculé les moyennes correspondantes pour chaque cas. 
+
+### Calcul de moyennes pour remplacer les valeurs manquantes
+
+```{r}
+moyenne_5_h <- enquete_na |>
+  filter(hsommeil == 5.0 & genre == "Homme") |>
+  select(hsommeil, trajet) |>
+  filter(!is.na(trajet)) |>
+  summarize(
+    across(
+      everything(),
+      ~ mean(.x) |> round()
+    )
+  )
+
+moyenne_6_h <- enquete_na |>
+  filter(hsommeil == 6.0 & genre == "Homme") |>
+  select(hsommeil, trajet) |>
+  filter(!is.na(trajet)) |>
+  summarize(
+    across(
+      everything(),
+      ~ mean(.x) |> round()
+    )
+  )
+
+moyenne_6_5_h <- enquete_na |>
+  filter(hsommeil == 6.5 & genre == "Homme") |>
+  select(hsommeil, trajet) |>
+  filter(!is.na(trajet)) |>
+  summarize(
+    across(
+      everything(),
+      ~ mean(.x) |> round()
+    )
+  )
+
+moyenne_7_f <- enquete_na |>
+  filter(hsommeil == 7.0 & genre == "Femme") |>
+  select(hsommeil, trajet) |>
+  filter(!is.na(trajet)) |>
+  summarize(
+    across(
+      everything(),
+      ~ mean(.x) |> round()
+    )
+  )
+
+moyenne_7_h <- enquete_na |>
+  filter(hsommeil == 7.0 & genre == "Homme") |>
+  select(hsommeil, trajet) |>
+  filter(!is.na(trajet)) |>
+  summarize(
+    across(
+      everything(),
+      ~ mean(.x) |> round()
+    )
+  )
+
+moyenne_7_5_h <- enquete_na |>
+  filter(hsommeil == 7.5 & genre == "Femme") |>
+  select(hsommeil, trajet) |>
+  filter(!is.na(trajet)) |>
+  summarize(
+    across(
+      everything(),
+      ~ mean(.x) |> round()
+    )
+  )
+
+moyenne_7_5_h <- enquete_na |>
+  filter(hsommeil == 7.5 & genre == "Homme") |>
+  select(hsommeil, trajet) |>
+  filter(!is.na(trajet)) |>
+  summarize(
+    across(
+      everything(),
+      ~ mean(.x) |> round()
+    )
+  )
+
+moyenne_8_f <- enquete_na |>
+  filter(hsommeil == 8.0 & genre == "Femme") |>
+  select(hsommeil, trajet) |>
+  filter(!is.na(trajet)) |>
+  summarize(
+    across(
+      everything(),
+      ~ mean(.x) |> round()
+    )
+  )
+
+moyenne_8_5_f <- enquete_na |>
+  filter(hsommeil == 8.5 & genre == "Femme") |>
+  select(hsommeil, trajet) |>
+  filter(!is.na(trajet)) |>
+  summarize(
+    across(
+      everything(),
+      ~ mean(.x) |> round()
+    )
+  )
+
+moyenne_8_5_h <- enquete_na |>
+  filter(hsommeil == 8.5 & genre == "Homme") |>
+  select(hsommeil, trajet) |>
+  filter(!is.na(trajet)) |>
+  summarize(
+    across(
+      everything(),
+      ~ mean(.x) |> round()
+    )
+  )
+```
+
+### Remplissage des valeurs manquantes avec les moyennes
+
+```{r}
+# Consolidation des moyennes dans un seul dataframe
+moyennes <- tibble(
+  hsommeil = c(5.0, 6.0, 6.5, 7.0, 7.0, 7.5, 7.5, 8.0, 8.5, 8.5),
+  genre = c("Homme", "Homme", "Homme", "Femme", "Homme", "Femme", "Homme", "Femme", "Femme", "Homme"),
+  trajet_mean = c(
+    moyenne_5_h$trajet, moyenne_6_h$trajet, moyenne_6_5_h$trajet,
+    moyenne_7_f$trajet, moyenne_7_h$trajet, moyenne_7_5_h$trajet,
+    moyenne_7_5_h$trajet, moyenne_8_f$trajet, moyenne_8_5_f$trajet,
+    moyenne_8_5_h$trajet
+  )
+)
+```
+
+Enfin, nous sommes passé au remplacements de ces valeurs manquantes.
+
+```{r}
+# Remplacement des NA par les moyennes
+enquete_na <- enquete_na |>
+  left_join(moyennes, by = c("hsommeil", "genre")) |>
+  mutate(
+    trajet = ifelse(is.na(trajet), trajet_mean, trajet)
+  ) |>
+  select(-trajet_mean) 
+
+summary(enquete_na$trajet)
+```
+Nous pouvons alors observer que la médiane et la moyenne sont bien similaires à celles d'avant les remplacements.
+
+## Visualisation des données manquantes restantes
+```{r}
+naniar::gg_miss_upset(enquete_na, nsets = 7, nintersects = 100)
+```
+
+En observant de nouveau ce graphique nous permettant de voir quelles valeurs sont manquantes, nous pouvons constater que la variable anxiete est désormais celle avec le moins de données manquantes (27). Nous avons alors décidé d'essayer de les remplacer par des médianes à l'aide de boxplot.
+
+## Remplacement données manquantes par médianes
+### Identification des données manquantes dans anxiete
+
+Pour ce faire, nous avons d'abord commencé par identifier les valeurs manquantes, en regardant les données de ces lignes dans les variables hsommeil et genre. Ces choix de variables ont été fait car hsommeil n'a plus de valeurs manquantes, cela facilite donc le traitement, et genre est une variable d'intérêt avec peu de facteurs. Il sera alors plus facile d'observer les observations manquantes en fonction de ces modalités.
+
+```{r}
+enquete_na |>
+ filter(is.na(anxiete)) |>
+ count(hsommeil, genre)
+```
+
+Nous retrouvons bien les 27 valeurs manquantes de la variable anxiete. Parmi ces 27 observations, 15 proviennent de lignes où la personne ayant répondu au questionnaire est une femme, 8 proviennent d'un homme, et 4 proviennent de lignes où la valeur pour la variable genre est manquante.
+Nous allons alors essayer de remplacer les valeurs où il y a "Homme" et "Femme" dans genre.
+
+### Observations à travers des boxplots
+
+Ensuite, nous avons produit des graphiques avec des boxplots afin d'observer quels remplacements nous pourrions effectuer.
+
+#### Boxplot pour Homme
+
+```{r}
+genre_h <- enquete_na |>
+ filter(genre == "Homme")
+
+genre_h |>
+  ggplot() +
+  aes(
+    y = hsommeil, 
+    x = genre, 
+    color = anxiete, 
+    shape = anxiete) +
+  geom_boxplot() +
+  geom_jitter(alpha = 0.3) +
+  labs(
+    y = "Heures de sommeil",
+    x = "Genre",
+    color = "Anxiété",
+    shape = "Anxiété"
+  ) +
+  theme_bw()
+```
+
+Ce graphique nous montre les boxplots de l'anxiété en fonction de nombre d'heures de sommeil et du genre lorsque le genre est "Homme".  
+
+Nous pouvons alors constater que lorsque le répondant est un homme, la médiane du nombre d'heures de sommeil dormies est de 7 heures, peut importe si la personne souffre d'anxiété ou non. Cependant, cela ne nous apporte pas d'informations sur la façon dont nous pourrions remplacer les valeurs manquantes d'anxiété par rapport au genre et au nombre d'heures de sommeil de la ligne où des valeurs d'anxiete manquent. Nous ne pouvons alors pas faire de remplacement par rapport à ces observations et cette méthode.
+
+#### Boxplot pour Femme
+
+```{r}
+genre_f <- enquete_na |>
+ filter(genre == "Femme")
+
+genre_f |>
+  ggplot() +
+  aes(
+    y = hsommeil, 
+    x = genre, 
+    color = anxiete, 
+    shape = anxiete) +
+  geom_boxplot() +
+  geom_jitter(alpha = 0.3) +
+  labs(
+    y = "Heures de sommeil",
+    x = "Genre",
+    color = "Anxiété",
+    shape = "Anxiété"
+  ) +
+  theme_bw()
+```
+
+Ce graphique nous montre les boxplots de l'anxiété en fonction de nombre d'heures de sommeil et du genre lorsque le genre est "Femme". 
+
+Nous pouvons voir que la médiane des heures de sommeil dormies lorsqu'une femme souffre d'anxiété est de 7 heures. Cependant, lorsqu'elle ne souffre pas d'anxiété, elle est de 7 heures et demi.
+
+Nous pouvons alors estimé pour les femmes où les valeurs d'anxiété manquent si elles souffrent d'anxiété ou non, en fonction de leur réponse à hsommeil.
+
+Par exemple, pour une femme ayant affirmé dormir en moyenne 5 heures par semaines, nous pouvons supposer que sa réponse à la question sur l'anxiété est "Oui", 5 étant plus proche de 7, la médiane pour les femmes ayant répondu "Oui" que 7.5, la médiane pour les femmes ayant répondu "Non".
+
+Ainsi, nous pouvons effectuer des remplacements adéquats en cas de valeurs manquantes dans anxiete :  
+- si le nombre d'heures de sommeil dormies par une femme est inférieur ou égal à 7, alors nous pouvons remplacer par "Oui" dans anxiete ;  
+- si le nombre d'heures de sommeil dormies par une femme est supérieur ou égal à 7.5, alors nous pouvons remplacer par "Non" dans anxiété
+5, 6, 6.5, 7, 8, 8.5, 9.5  
+
+### Remplacement
+
+```{r}
+# Ensuite, nous allons effectuer le remplacement dans notre jeu de données.
+
+enquete_na <- enquete_na |>
+  mutate(
+    anxiete = case_when(
+      is.na(anxiete) & genre == "Femme" & hsommeil <= 7 ~ "Oui",
+      is.na(anxiete) & genre == "Femme" & hsommeil >= 7.5 ~ "Non",
+      TRUE ~ anxiete
+    ),
+    anxiete = factor(anxiete, levels = c("Oui", "Non")),
+    genre = factor(genre, levels = c("Femme", "Homme", "Autre/Ne préfère pas répondre"))
+  )
+
+# Nous sommes obligés de reconvertir les variables anxiete et genre en facteur une fois le remplacement effectué car sinon, la fonction case_when() effectuant un remplacement par une chaîne de caractères, cela transforme toute la colonne en caractère.
+```
+
+### Vérification
+```{r}
+summary(enquete_na)
+```
+
+Il ne reste désormais plus que 12 valeurs manquantes pour la variable anxiete.    
+
+## Visualisation des données manquantes restantes
+```{r}
+naniar::gg_miss_upset(enquete_na, nsets = 7, nintersects = 100)
+```
+
+Le reste des données manquantes étant plutôt nombreuses, nous avons décidé d'utiliser la fonction {mice} de R, afin d'effectuer des imputations multiples, et de tester différentes versions sur nos nombreuses valeurs manquantes restantes. Nous comparerons alors les différentes méthodes employées puis, nous opterons pour celle qui nous semble avoir le plus de sens et qui semble être le plus juste possible.
+
+## Imputations multiples avec mice pour le reste des NA
+### Valeurs manquantes restantes  
+
+Dans un premier temps, nous allons voir combien de valeurs manquantes sont toujours présentes pour chaque variable.
+
+```{r}
+colSums(is.na(enquete_na))
+```
+
+### Utilisation de mice
+
+A présent, nous allons utiliser la fonction {mice} afin de tester différents enchaînements d'imputation.  
+Par défaut, m = 5 donc cela va imputer des valeurs de 5 façons différentes.
+
+```{r}
+set.seed(3)
+
+enquete_na_impute <- mice(enquete_na)
+
+enquete_na_impute$method
+```
+
+Nous pouvons voir que les différentes méthodes utilisées en fonction des variables sont polyreg, pmm et logreg.  
+
+La méthode polyreg correspond à une régression logistique multiple, solution possible pour variable factorielle. Pour cette méthode, les valeurs des autres variables du modèle sont utilisées pour prédire la valeur manquante, en prenant en compte les différents facteurs des variables.  
+
+La méthode pmm (Predictive Mean Matching) est applicable pour tout type de variable. Cette méthode consiste à imputer une valeur observée par rapport à une prédiction faite à partir d'une observation complète ressemblant à l'observation où une valeur manque. Une valeur aléatoire d'une de ces observations complètes ressemblantes sera imputée, tout en gardant les caractéristiques de distribution des données.  
+
+Enfin, la méthode logreg correspond à une régression logistique, utilisant les variables du modèle autre que la variable concernée pour prédire la valeur de celle-ci. Cette méthode est utilisée pour des variables binaires, ici pour anxiete.  
+
+Ces méthodes semblent être les plus adaptées aux différentes variables que nous avons.  
+
+### Comparaison des versions 
+#### Graphique plot
+
+Nous allons maintenant commencer par regarder si les différentes imputations faites semblent cohérentes et suivent globalement une même direction.
+
+```{r}
+plot(enquete_na_impute)
+```
+
+Chacune des courbes correspond à l'une des 5 versions de l'imputation faites par {mice}. Pour chaque variable, nous retrouvons les courbes des moyennes et des écart-types en fonction des différentes versions.  
+
+Une similarité entre les courbes indique que les imputations sont cohérentes entre les différentes versions générées par mice. Dans le cas contraire, cela peut être signe d'une instabilité dans l'imputation ou bien d'un manque d'information pour estimer correctement les valeurs manquantes.  
+
+Ici, nous pouvons constater que certaines courbes pour diverses variables présentent de nettes différences avec celles des autres imputations, notamment au niveau de l'écart-type.   
+Cependant, dans le cas de certaines variables comme formephy, les courbes, notamment de moyenne, sont très rapprochées, indiquant une prédiction effectué par {mice} plutôt cohérente avec les valeurs présentes.  
+
+#### Comparaison des imputations faites par mice
+```{r}
+imputation1 <- mice::complete(enquete_na_impute, 1)
+imputation2 <- mice::complete(enquete_na_impute, 2)
+imputation3 <- mice::complete(enquete_na_impute, 3)
+imputation4 <- mice::complete(enquete_na_impute, 4)
+imputation5 <- mice::complete(enquete_na_impute, 5)
+```
+
+Afin de choisir l'une des versions d'imputation de mice, il nous faut les comparer selon des critères, définis en fonction de nos objectifs, pour choisir la version nous convenant le mieux et étant la plus juste possible, pour effectuer l'imputation sur notre jeu de données.  
+
+#### Comparaison à partir d'une régression linéaire
+
+Originellement, notre jeu de données ainsi que notre questionnaire ont été crées dans le but d'effectuer une analyse économétrique, et donc une régression linéaire. Afin de choisir la meilleure imputation faite par la fonction {mice}, nous avons alors opté pour le modèle ayant la meilleure qualité de régression linéaire.  
+
+Pour accomplir cela, nous avons alors crée un modèle de régression linéaire pour chaque imputations faites par mice. Puis, nous avons comparer les résultats.  
+
+```{r}
+modele1 <- lm(hsommeil ~ genre + formephy + formemen + anxiete + cours_avant_9h + trajet, data = imputation1)
+modele2 <- lm(hsommeil ~ genre + formephy + formemen + anxiete + cours_avant_9h + trajet, data = imputation2)
+modele3 <- lm(hsommeil ~ genre + formephy + formemen + anxiete + cours_avant_9h + trajet, data = imputation3)
+modele4 <- lm(hsommeil ~ genre + formephy + formemen + anxiete + cours_avant_9h + trajet, data = imputation4)
+modele5 <- lm(hsommeil ~ genre + formephy + formemen + anxiete + cours_avant_9h + trajet, data = imputation5)
+
+summary(modele1)
+summary(modele2)
+summary(modele3)
+summary(modele4)
+summary(modele5)
+```
+
+
+Le modèle ayant le R^2 le plus élevé est le modèle 5. Nous nous sommes donc orienté vers ce modèle pour remplacer les dernières valeurs manquantes.  
+
+### Choix de l'imputation  
+
+Nous effectuons à présent l'imputation en choisissant l'itération numéro 5.
+
+```{r}
+enquete_na_complete_mice <- mice::complete(enquete_na_impute, 5)
+
+summary(enquete_na_complete_mice)
+```
+
+Il ne reste à présent aucune valeur manquante au sein de notre échantillon. 
+
+# Comparaison avec les vraies valeurs
+
+Nos valeurs manquantes ayant été artificiellement ajoutées à notre jeu de données, nous avons comparé ces nouvelles valeurs avec les valeurs d'origine de notre enquête.
+
+## Import des données d'origine  
+
+Nous importons en premier lieu notre jeu de données d'origine, en lui apportant quelques modifications afin de le rendre comparable avec notre jeu de données actuel, notament : 
+
+- Renommer nos variables ;  
+- Changer les valeurs manquantes des variables hsommeil et trajet avant de les convertir en numérique ;  
+- Convertir toutes nos variables dans le bon format ;  
+- Supprimer les mêmes lignes que dans notre jeu de données actuel
+
+```{r}
+enquete_originale <- read.csv2("enquete_originale.csv", header = TRUE, sep = ",")
+
+enquete_originale$hsommeil <- str_replace_all(enquete_originale$hsommeil, 
+  c(
+    "h" = ".", "H" = ".", "," = ".", ",." = ".", 
+    "8..5" = "8.5", "7 / 7.5" = "7", "30" = "5"
+  )
+)
+
+enquete_originale$trajet <- str_replace_all(enquete_originale$trajet, 
+  c(
+    "20min" = "20", "30/40 minutes" = "35", "une demi heure" = "30"
+  )
+)
+
+lignes_a_supprimer <- c(36, 49, 64, 141, 166, 182, 189, 293)
+
+enquete_originale <- enquete_originale[
+  !(rownames(enquete_originale) %in% lignes_a_supprimer) & enquete_originale$hsommeil != 3.5,
+  ]
+
+enquete_originale$hsommeil <- as.numeric(enquete_originale$hsommeil)
+
+enquete_originale[, c(3, 4)] <- lapply(enquete_originale[, c(3, 4)], function(x) gsub(" =.*", "", x))
+enquete_originale[, c(3, 4, 7)] <- lapply(enquete_originale[, c(3, 4, 7)], as.integer)
+
+enquete_originale[, c(1, 5, 6)] <- lapply(enquete_originale[, c(1, 5, 6)], function(col) {
+  col[col == ""] <- NA  
+  as.factor(col)       
+})
+
+enquete_originale <- enquete_originale[-c(ligne_na_complet, ligne_na_3, ligne_na_4), ]
+
+summary(enquete_originale)
+```
+
+## Différences entre valeurs originales et imputées  
+
+Nous pouvons désormais observer les différences existantes entre notre jeu de données sans données manquantes aléatoires et notre nouveau jeu de données complété.
+
+```{r}
+enquete_na_sans_remplacements <- read.csv2("enquete_na - Copie.csv", header = TRUE, sep = ",")
+
+enquete_na_sans_remplacements$hsommeil <- str_replace_all(enquete_na_sans_remplacements$hsommeil, 
+  c(
+    "h" = ".", "H" = ".", "," = ".", ",." = ".", 
+    "8..5" = "8.5", "7 / 7.5" = "7", "30" = "5"
+  )
+)
+
+enquete_na_sans_remplacements$trajet <- str_replace_all(enquete_na_sans_remplacements$trajet, 
+  c(
+    "20min" = "20", "30/40 minutes" = "35", "une demi heure" = "30"
+  )
+)
+
+lignes_a_supprimer <- c(36, 49, 64, 141, 166, 182, 189, 293)
+
+enquete_na_sans_remplacements <- enquete_na_sans_remplacements[
+  !(rownames(enquete_na_sans_remplacements) %in% lignes_a_supprimer) & enquete_na_sans_remplacements$hsommeil != 3.5,
+  ]
+
+enquete_na_sans_remplacements$hsommeil <- as.numeric(enquete_na_sans_remplacements$hsommeil)
+
+enquete_na_sans_remplacements[, c(3, 4)] <- lapply(enquete_na_sans_remplacements[, c(3, 4)], function(x) gsub(" =.*", "", x))
+enquete_na_sans_remplacements[, c(3, 4, 7)] <- lapply(enquete_na_sans_remplacements[, c(3, 4, 7)], as.integer)
+
+enquete_na_sans_remplacements[, c(1, 5, 6)] <- lapply(enquete_na_sans_remplacements[, c(1, 5, 6)], function(col) {
+  col[col == ""] <- NA  
+  as.factor(col)       
+})
+
+enquete_na_sans_remplacements <- enquete_na_sans_remplacements[-c(ligne_na_complet, ligne_na_3, ligne_na_4), ]
+
+indices_na <- is.na(enquete_na_sans_remplacements)
+
+valeurs_originales <- enquete_originale[indices_na]
+valeurs_imputees <- enquete_na_complete_mice[indices_na]
+
+comparaison <- data.frame(
+    Originales = valeurs_originales,
+    Imputées = valeurs_imputees
+  )
+
+comparaison$Différence <- comparaison$Originales != comparaison$Imputées
+
+print(comparaison)
+
+compteur_différences <- sapply(comparaison, function(x) sum(x == TRUE, na.rm = TRUE))
+
+print(compteur_différences)
+```
+
+Sur 241 imputations faites, nous pouvons voir qu'il y a tout de même 135 différences entre les valeurs originales et celles imputées.  
+Ces différences peuvent notamment s'expliquer par une potentielle faiblesse des méthodes de comparaison choisies, ainsi que par le côté aléatoire des réponses que les étudiants ont donné.   
+
+Concernant les valeurs manquantes de la variable hsommeil, elles ne sont pas présentes dans cette comparaison car les remplacements effectués étaient seulement du cadre de la forme de l'écriture des répondants et non des valeurs en elles-mêmes. Nous pouvons alors considérer ces remplacements comme corrects.  
+
+Sur un total de 279 valeurs manquantes (241 + les 38 valeurs manquantes de hsommeil et de trajet), 135 n'ont pas été remplacées correctement. Nous pouvons donc affirmer que quasiment 52% des valeurs imputées sont correctes.  
+
+# Conclusion
+
+Pour conclure, nous avons su exploiter nos données afin d'utiliser diverses méthodes nous semblant le plus adaptées pour remplacer les valeurs manquantes de notre jeu de données. Chacune des méthodes utilisées présentent des avantages et des inconvénients.     
+
+Tout d'abord, nous avons remplacé les valeurs manquantes de certaines variables par leurs valeurs réelles, mais uniquement lorsque les données étaient déjà partiellement renseignées. Nous avons ensuite supprimé les lignes comportant un trop grand nombre de valeurs manquantes. Cette approche est simple à mettre en œuvre et permet de préserver la validité statistique de l'échantillon, bien qu'elle réduise sa taille, ce qui entraîne une perte d'informations et une diminution de la puissance statistique. Par ailleurs, nous avons opté pour le remplacement de certaines valeurs manquantes par les moyennes ou les médianes d'observations similaires ; une méthode rapide et efficace, mais qui peut introduire un biais en réduisant la variation des données et en altérant les relations entre variables. Enfin, nous avons utilisé l'imputation par régression linéaire, qui permet d'obtenir des résultats plus précis en tenant compte des relations entre les variables. Toutefois, cette méthode présente un risque de sous-estimer l'impact de la variance.    
+
+Au final, après comparaison avec le jeu de données d'origine, nous percevons de nombreuses différences entre les valeurs d'origines et les valeurs imputées. Ainsi, cela met en avant les limites de la fiabilité concernant le remplacement des données manquantes, et donc l'intérêt de bien préparer en amont la méthode de receuil de données afin de limiter autant que possible le nombre de valeurs manquantes.
