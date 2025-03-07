@@ -53,7 +53,7 @@ Le but étant d'avoir une variable numérique supplémentaire afin de diversifie
 ## Import des données
 
 ```{r}
-#setwd("C:/Users/isali/OneDrive/Documents/cours/M1 ECAP/S1/Biostatistiques/dossier_biostats")
+#setwd("chemin vers le dossier")
 
 #enquete_originale <- read.csv2("enquete_originale.csv", header = TRUE, sep = ",")
 ```
